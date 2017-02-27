@@ -8,6 +8,7 @@ all: image
 
 image:
 	sed 's#^FROM .*#FROM $(BASE)#' Dockerfile > Dockerfile.build
+	docker pull $$(grep ^FROM Dockerfile.build | awk '{print $$2}')
 	docker build --tag=$(IMAGE):$(VERSION) --file=Dockerfile.build .
 	rm Dockerfile.build
 
