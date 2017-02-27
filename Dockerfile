@@ -29,12 +29,3 @@ ADD scripts/tomcat-configurator /tomcat-configurator
 ADD scripts/log4j-configurator  /log4j-configurator
 ADD scripts/tomcat-install      /bin/tomcat-install
 CMD ["/tomcat/bin/catalina.sh","run"]
-
-# HEALTHCHECK CMD nc -z 127.0.0.1 8095
-
-# VOLUME /app/.oracle_jre_usage /app/apache-tomcat/work /app/apache-tomcat/logs /app/database /tmp
-# ENTRYPOINT ["crowd"]
-# ADD docker-entrypoint.sh /bin/crowd
-
-# ADD scripts/main /main
-# ADD scripts/vars /vars
