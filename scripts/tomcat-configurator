@@ -1,0 +1,59 @@
+#!sh
+
+tomcat_connectors_clear() {
+  $CATALINA_CONNECTOR_DIRTY || return 0
+  xml ed -L -d '/Server/Service/Connector' "$CATALINA_HOME/conf/server.xml" 
+  export CATALINA_CONNECTOR_DIRTY=false
+}
+
+tomcat_connector_new() {
+  local port="$1"
+  xml ed -L -s /Server/Service -t elem -n Connector -v "" -i /Server/Service/Connector -t attr -n port -v "$port" "$CATALINA_HOME/conf/server.xml"
+}
+
+tomcat_connector_set() {
+  local port=$1 var=$2 val=$3
+  xml ed -L -i "/Server/Service/Connector[@port=\"$port\"]" -t attr -n "$var" -v "$val" "$CATALINA_HOME/conf/server.xml"
+}
+
+tomcat_connector_upgrade_http2() {
+  local port=$1
+  xml ed -L -d "/Server/Service/Connector[@port=\"$port\"]/UpgradeProtocol" \
+            -s "/Server/Service/Connector[@port=\"$port\"]" -t elem -n UpgradeProtocol -v "" \
+            -i "/Server/Service/Connector[@port=\"$port\"]/UpgradeProtocol" -t attr -n className -v "org.apache.coyote.http2.Http2Protocol" \
+            "$CATALINA_HOME/conf/server.xml"
+}
+
+tomcat_connectors() {
+  printenv | grep CATALINA_CONNECTOR_ | cut -f3 -d_ | sort | uniq  
+}
+
+tomcat_connector_settings() {
+  local port="$1"
+  printenv | grep "CATALINA_CONNECTOR_${1}_" | cut -f4- -d_
+}
+
+CATALINA_CONNECTOR_DIRTY=true
+tomcat_connectors | while read port; do
+  printf '\e[1mApache Tomcat\e[0m \e[32mConnector\e[0m \e[1m%i\e[0m => \e[1m\e[34m' "$port"
+  tomcat_connectors_clear
+  tomcat_connector_new "$port"
+  tomcat_connector_settings "$port" | while read var; do
+    val="${var#*=}"
+    var="${var%%=*}"
+    printf '%s=%s\n' "$var" "$val"
+    if [[ "$var" = "upgrade" ]]; then
+      command -v tomcat_connector_upgrade_$val \
+      && tomcat_connector_upgrade_$val $port \
+      || printf 'UpgradeProtocol %s unkown\n' "$val" >&2
+    else
+      tomcat_connector_set $port "$var" "$val"
+    fi
+  done | tr '\n' ',' | sed -e 's/,$//'
+  printf '\e[0m\n'
+done || true
+
+[[ -z "$TRACE" ]] || cat "$CATALINA_HOME/conf/server.xml"
+
+export JAVA_OPTS="$JAVA_OPTS $@"
+set -- JAVA_HOME="$JAVA_HOME" CATALINA_HOME="$CATALINA_HOME" CATALINA_TMPDIR="$CATALINA_TMPDIR" "$(command -v su-exec)" "$APPLICATION_USER" "$CATALINA_HOME/bin/catalina.sh" run
