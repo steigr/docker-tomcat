@@ -89,10 +89,20 @@ identity_source() {
 	done
 }
 
+identity_tools() {
+	apk add --no-cache --virtual .identity-deps curl jq openssl
+}
+
+identity_clean() {
+	apk del .build-deps
+}
+
 identity_vars
 for identity in $(printenv | grep ^IDENTITY_ | cut -f2 -d_ | sort | uniq | grep -v "^JKS$" ); do
+	identity_tools
 	target="IDENTITY_${identity}_TARGET"
 	source="IDENTITY_${identity}_SOURCE"
 	identity_log $identity "stored in ${!target}"
 	identity_source "${!source}" | identity_target "${!target}"
 done
+identity_clean
