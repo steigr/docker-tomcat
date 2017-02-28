@@ -1,7 +1,7 @@
 IMAGE    ?= steigr/tomcat
 VERSION  ?= $(shell git branch | grep \* | cut -d ' ' -f2)
 PORT     ?= 8080
-BASE     ?= steigr/java
+BASE     ?= steigr/java:8_server-jre_unlimited
 
 all: image
 	@true
