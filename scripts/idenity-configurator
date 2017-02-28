@@ -1,0 +1,98 @@
+#!sh
+
+identity_vars() {
+	export IDENTITY_JKS_DEFAULT_PASSWORD="${IDENTITY_JKS_DEFAULT_PASSWORD:-changeit}"
+}
+
+identity_log() {
+	local name="$1"; [[ $# -gt 1 ]] && shift
+	printf '\e[1mIdentity\e[0m \e[32m%s\e[0m %s\n' "$name" "$@"
+}
+
+identity_transport() {
+	base64 $1 | xargs | sed -e 's/ //g'
+}
+
+identity_source_data() {
+	printf '%s\n' "${1}"
+}
+
+identity_source_file() {
+	identity_transport identity_transport
+}
+
+identity_source_curl() {
+	curl -sL "${1}" | identity_transport
+}
+
+identity_source_etcd() {
+	local source host
+	source="${1}"
+	host="${source%%/*}"
+	source="${source#*/}"
+	curl -sL "http://$host/v2/keys/${source}" | jq -r '.node.value' | identity_transport
+}
+
+identity_target() {
+	local target type permissions owner group mode data
+	target="${1}"
+	type="${target%%://*}"
+	target="${target#*://}"
+	owner="${target%%:*}"
+	target="${target#*:}"
+	group="${target%%:*}"
+	target="${target#*:}"
+	permissions="${target%%:*}"
+	target="${target#*:}"
+	case "$type" in
+		pem)
+			while read data; do 
+				printf '%s' "$data" | base64 -d
+			done | install -D -m "${permissions:-0640}" -o "${owner:-root}" -g "${group:-root}" /dev/stdin "$target"
+		;;
+		der)
+			while read data; do 
+				printf '%s' "$data" | base64 -d | openssl x509 -outform der
+			done | install -D -m "${permissions:-0640}" -o "${owner:-root}" -g "${owner:-root}" /dev/stdin "$target"
+		;;
+		jks)
+			while read data; do
+				printf '%s' "$data" | base64 -d | openssl x509 -outform pem | keytool -importcert -noprompt -keystore "$target" -alias "identity-configurator-$(awk '{print $1}' /proc/uptime)" -storepass "${IDENTITY_JKS_DEFAULT_PASSWORD}"
+			done
+			chown "${owner:-root}":"${owner:-root}" "$target"
+			chmod "${permissions:-0640}" "$target"
+		;;
+	esac
+}
+
+identity_source() {
+	local source
+	for source in $(printf '%s' "${1}" | sed -e 's@#\([a-z][a-z]*\)://@\n\1://@g'); do
+		case "${source%%:*}" in
+			etcd)
+				identity_log sourcing "from etcd" >&2
+				identity_source_etcd "${source#etcd://}"
+			;;
+			http|https|ftp)
+				identity_log sourcing "via cURL" >&2
+				identity_source_curl "${source#*://}"
+			;;
+			file)
+				identity_log sourcing "from file" >&2
+				identity_source_file "${source#file://}"
+			;;
+			data)
+				identity_log sourcing "from inline base64" >&2
+				identity_source_data "${source#*;base64.}"
+			;;
+		esac
+	done
+}
+
+identity_vars
+for identity in $(printenv | grep ^IDENTITY_ | cut -f2 -d_ | sort | uniq | grep -v "^JKS$" ); do
+	target="IDENTITY_${identity}_TARGET"
+	source="IDENTITY_${identity}_SOURCE"
+	identity_log $identity "stored in ${!target}"
+	identity_source "${!source}" | identity_target "${!target}"
+done

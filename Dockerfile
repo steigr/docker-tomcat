@@ -25,7 +25,11 @@ RUN  export TOMCAT_VERSION=8.5.11 \
  &&  apk del .build-deps \
  &&  rm -rf /var/cache/apk/* /tomcat
 
-ADD scripts/tomcat-configurator /tomcat-configurator
-ADD scripts/log4j-configurator  /log4j-configurator
-ADD scripts/tomcat-install      /bin/tomcat-install
+RUN  apk add --no-cache --virtual .runtime-deps curl jq \
+ &&  apk del .build-deps
+
+ADD scripts/tomcat-configurator  /tomcat-configurator
+ADD scripts/log4j-configurator   /log4j-configurator
+ADD scripts/tomcat-install       /bin/tomcat-install
+ADD scripts/idenity-configurator /idenity-configurator
 CMD ["/tomcat/bin/catalina.sh","run"]
