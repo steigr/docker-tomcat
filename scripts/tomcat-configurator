@@ -8,7 +8,7 @@ tomcat_connectors_clear() {
 
 tomcat_connector_new() {
   local port="$1"
-  xml ed -L -s /Server/Service -t elem -n Connector -v "" -i /Server/Service/Connector -t attr -n port -v "$port" "$CATALINA_HOME/conf/server.xml"
+  xml ed -L -s /Server/Service -t elem -n Connector -v "" -i '/Server/Service/Connector[not(@*)]' -t attr -n port -v "$port" "$CATALINA_HOME/conf/server.xml"
 }
 
 tomcat_connector_set() {
@@ -43,7 +43,7 @@ tomcat_connectors | while read port; do
     var="${var%%=*}"
     printf '%s=%s\n' "$var" "$val"
     if [[ "$var" = "upgrade" ]]; then
-      command -v tomcat_connector_upgrade_$val \
+      command -v tomcat_connector_upgrade_$val </dev/null >/dev/null 2>&1 \
       && tomcat_connector_upgrade_$val $port \
       || printf 'UpgradeProtocol %s unkown\n' "$val" >&2
     else
