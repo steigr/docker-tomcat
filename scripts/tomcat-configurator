@@ -8,7 +8,7 @@ tomcat_connectors_clear() {
 
 tomcat_connector_new() {
   local port="$1"
-  xml ed -L -s /Server/Service -t elem -n Connector -v "" -i /Server/Service/Connector -t attr -n port -v "$port" "$CATALINA_HOME/conf/server.xml"
+  xml ed -L -s /Server/Service -t elem -n Connector -v "" -i '/Server/Service/Connector[not(@*)]' -t attr -n port -v "$port" "$CATALINA_HOME/conf/server.xml"
 }
 
 tomcat_connector_set() {
