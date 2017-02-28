@@ -43,7 +43,7 @@ tomcat_connectors | while read port; do
     var="${var%%=*}"
     printf '%s=%s\n' "$var" "$val"
     if [[ "$var" = "upgrade" ]]; then
-      command -v tomcat_connector_upgrade_$val \
+      command -v tomcat_connector_upgrade_$val </dev/null >/dev/null 2>&1 \
       && tomcat_connector_upgrade_$val $port \
       || printf 'UpgradeProtocol %s unkown\n' "$val" >&2
     else
