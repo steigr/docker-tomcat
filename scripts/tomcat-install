@@ -4,4 +4,4 @@
 ${2:+su-exec $2} tar \
   -x -v -f $(echo tomcat-*tar*) \
   -C "${1:-/app}"
-rm -rf tomcat-$TOMCAT_VERSION.tar.*
+rm -rf tomcat-*tar*
